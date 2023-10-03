@@ -1,65 +1,65 @@
-#![cfg_attr(not(feature = "export-abi"), no_main, no_std)]
+// Only run this as a WASM if the export-abi feature is not set.
+#![cfg_attr(not(feature = "export-abi"), no_main)]
 extern crate alloc;
+extern crate poseidon_rs;
+use ff_ce::PrimeField;
 
-use crate::erc20::{Erc20, Erc20Params};
-use alloc::{string::String, vec::Vec};
-use stylus_sdk::{alloy_primitives::U256, call, msg, prelude::*};
-
+/// Initializes a custom, global allocator for Rust programs compiled to WASM.
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-mod erc20;
+use stylus_sdk::{alloy_primitives::U256, prelude::*};   
 
-struct WethParams;
+use poseidon_rs::{Poseidon, Fr};
+// use ff::PrimeField;
 
-/// Immutable definitions
-impl Erc20Params for WethParams {
-    const NAME: &'static str = "Wrapped Ether Example";
-    const SYMBOL: &'static str = "WETH";
-    const DECIMALS: u8 = 18;
-}
+// #[derive(PrimeField)]
+// #[PrimeFieldModulus = "21888242871839275222246405745257275088548364400416034343698204186575808495617"]
+// #[PrimeFieldGenerator = "7"]
+// pub struct Fr(FrRepr);
 
-// The contract
 sol_storage! {
-    #[entrypoint] // Makes Weth the entrypoint
-    struct Weth {
-        #[borrow] // Allows erc20 to access Weth's storage and make calls
-        Erc20<WethParams> erc20;
+    #[entrypoint]
+    pub struct Counter {
+        uint256 number;
     }
 }
 
-// Another contract we'd like to call
-sol_interface! {
-    interface IMath {
-        function sum(uint256[] values) pure returns (string, uint256);
-    }
-}
-
+/// Define an implementation of the generated Counter struct, defining a set_number
+/// and increment method using the features of the Stylus SDK.
 #[external]
-#[inherit(Erc20<WethParams>)]
-impl Weth {
-    #[payable]
-    pub fn deposit(&mut self) -> Result<(), Vec<u8>> {
-        self.erc20.mint(msg::sender(), msg::value());
+impl Counter {
+    /// Gets the number from storage.
+    pub fn number(&self) -> Result<U256, Vec<u8>> {
+        Ok(self.number.get())
+    }
+
+    /// Sets a number in storage to a user-specified value.
+    pub fn set_number(&mut self, new_number: U256) -> Result<(), Vec<u8>> {
+        self.number.set(new_number);
         Ok(())
     }
 
-    pub fn withdraw(&mut self, amount: U256) -> Result<(), Vec<u8>> {
-        self.erc20.burn(msg::sender(), amount)?;
-
-        // send the user their funds
-        call::transfer_eth(msg::sender(), amount)
+    /// Increments number and updates it values in storage.
+    pub fn increment(&mut self) -> Result<(), Vec<u8>> {
+        let number = self.number.get();
+        self.number.set(number + U256::from(1));
+        Ok(())
     }
 
-    // sums numbers
-    pub fn sum(values: Vec<U256>) -> Result<(String, U256), Vec<u8>> {
-        Ok(("sum".into(), values.iter().sum()))
+    pub fn poseidon_hash(&self, data: U256) -> Result<(U256), Vec<u8>> {
+        let bytes: [u8; 32] = data.to_be_bytes();
+        
+        let data_str = std::str::from_utf8(&bytes).unwrap();
+        
+        let b0: Fr = Fr::from_str(
+            "21888242871839275222246405745257275088548364400416034343698204186575808495619",
+        );
+
+        let arr: Vec<Fr> = vec![b0];
+        let poseidon = Poseidon::new();
+        let hash = poseidon.hash(arr).unwrap();
+        Ok(data)
     }
 
-    // calls the sum() method from the interface
-    pub fn sum_with_helper(&self, helper: IMath, values: Vec<U256>) -> Result<U256, Vec<u8>> {
-        let (text, sum) = helper.sum(self, values)?;
-        assert_eq!(&text, "sum");
-        Ok(sum)
-    }
 }
