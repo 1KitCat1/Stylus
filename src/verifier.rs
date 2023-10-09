@@ -22,7 +22,7 @@ struct Cli {
     proof_file_path: String,
 }
 
-fn main() {
+pub fn main() {
     env_logger::Builder::new()
         .format(|buf, record| writeln!(buf, "{}", record.args()))
         .filter_level(log::LevelFilter::Debug)

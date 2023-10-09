@@ -22,7 +22,7 @@ pub type BaseElement = winter_math::fields::f128::BaseElement;
 pub struct InputArg {
     #[clap(long, default_value_t = 0)]
     pub start: u128,
-    #[clap(long, default_value_t = 1024)]
+    #[clap(long, default_value_t = 16)]
     pub n: usize,
 }
 
@@ -95,7 +95,7 @@ pub fn build_trace(arg: &InputArg) -> TraceType {
             } else {
                 state[3] = BaseElement::ZERO;
             }
-            println!("trace.fill.init: step:0 state:{:?}", state);
+            // println!("trace.fill.init: step:0 state:{:?}", state);
         },
         |last_step, state| {
             state[0] = state[3] * (state[1] - state[2])
@@ -108,11 +108,11 @@ pub fn build_trace(arg: &InputArg) -> TraceType {
             } else {
                 state[3] = BaseElement::ZERO;
             }
-            println!(
-                "trace.fill.update: step:{} state:{:?}",
-                last_step + 1,
-                state
-            );
+            // println!(
+            //     "trace.fill.update: step:{} state:{:?}",
+            //     last_step + 1,
+            //     state
+            // );
         },
     );
 
@@ -165,11 +165,6 @@ impl Air for FreshAir {
         next = current[3] * (current[1] - current[2])
             + (E::ONE - current[3]) * (current[2] - current[1]);
         result[0] = frame.next()[0] - next;
-        // println!(
-        //     "evaluate_transition: current:{:?} next:{:?}",
-        //     current,
-        //     frame.next()
-        // );
     }
 
     fn get_assertions(&self) -> Vec<Assertion<Self::BaseField>> {
